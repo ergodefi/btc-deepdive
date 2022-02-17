@@ -26,13 +26,8 @@ INF = Point(None, None, None)
 Point.__rmul__ = double_and_add
 Point.__add__ = ec_addition
 
-
-from helper import PublicKey
-
-
 # identity 1
 # ========================
-
 # using a static secret key instead of random for reproducibility 
 sk = int.from_bytes(b'super secret identity one', 'big') 
 assert 1 <= sk < bitcoin_gen.n 
@@ -47,3 +42,4 @@ print("* Secret (Private) Key: ", sk)
 print("* Public key (uncompressed): ", (pk.x, pk.y))
 print("* Public key (compressed): ", pk_compressed) 
 print("* Bitcoin address: ", address)
+
