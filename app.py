@@ -1,4 +1,4 @@
-from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey 
+from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey, TxIn, TxOut, Tx, Script  
 
 # secp256k1 ellptical curve constants - y^2 = x^3 + 7 (mod p)
 bitcoin_curve = Curve(
@@ -22,24 +22,23 @@ bitcoin_gen = Generator(
 # point at infinity 
 INF = Point(None, None, None) 
 
-# 
+# point addition and multiplicationw
 Point.__rmul__ = double_and_add
 Point.__add__ = ec_addition
 
 # identity 1
 # ========================
 # using a static secret key instead of random for reproducibility 
-sk = int.from_bytes(b'super secret identity one', 'big') 
-assert 1 <= sk < bitcoin_gen.n 
-pk = sk * G
+secret_key = int.from_bytes(b'super secret identity one', 'big') 
+assert 1 <= secret_key < bitcoin_gen.n 
+public_key = secret_key * G
 
-pk_compressed = PublicKey.from_point(pk).encode(compressed=True, hash160=False).hex()
-pkh = PublicKey.from_point(pk).encode(compressed=True, hash160=True).hex()
-address = PublicKey.from_point(pk).address(net='test', compressed=True)
+public_key_compressed = PublicKey.from_point(public_key).encode(compressed=True, hash160=False).hex()
+public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True).hex()
+bitcoin_address = PublicKey.from_point(public_key).address(net='test', compressed=True)
 
 print("Bitcoin Identity #1")
-print("* Secret (Private) Key: ", sk)
-print("* Public key (uncompressed): ", (pk.x, pk.y))
-print("* Public key (compressed): ", pk_compressed) 
-print("* Bitcoin address: ", address)
-
+print("* Secret (Private) Key: ", secret_key)
+print("* Public key (uncompressed): ", (public_key.x, public_key.y))
+print("* Public key (compressed): ", public_key_compressed) 
+print("* Bitcoin address: ", bitcoin_address)
