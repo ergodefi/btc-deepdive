@@ -22,7 +22,7 @@ bitcoin_gen = Generator(
 # point at infinity 
 INF = Point(None, None, None) 
 
-# 
+# point addition and multiplication
 Point.__rmul__ = double_and_add
 Point.__add__ = ec_addition
 
