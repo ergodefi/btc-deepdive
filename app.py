@@ -32,7 +32,6 @@ Point.__add__ = ec_addition
 secret_key = int.from_bytes(b'super secret identity one', 'big') 
 assert 1 <= secret_key < bitcoin_gen.n 
 public_key = secret_key * G
-
 public_key_compressed = PublicKey.from_point(public_key).encode(compressed=True, hash160=False).hex()
 public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True).hex()
 bitcoin_address = PublicKey.from_point(public_key).address(net='test', compressed=True)
@@ -41,4 +40,72 @@ print("Bitcoin Identity #1")
 print("* Secret (Private) Key: ", secret_key)
 print("* Public key (uncompressed): ", (public_key.x, public_key.y))
 print("* Public key (compressed): ", public_key_compressed) 
-print("* Bitcoin address: ", bitcoin_address)
+print("* Public key hash: ", public_key_hash) 
+print("* Bitcoin address (base58check): ", bitcoin_address)
+
+
+# identity 2 
+# ========================
+secret_key2 = int.from_bytes(b'another secret identity two', 'big') # for reproducibility 
+assert 1 <= secret_key2 < bitcoin_gen.n
+public_key2 = secret_key2 * G
+public_key2_compressed = PublicKey.from_point(public_key2).encode(compressed=True, hash160=False).hex()
+public_key_hash2 = PublicKey.from_point(public_key2).encode(compressed=True, hash160=True).hex()
+bitcoin_address2 = PublicKey.from_point(public_key2).address(net='test', compressed=True)
+
+print("Bitcoin Identity #2")
+print("* Secret (Private) Key: ", secret_key2)
+print("* Public key (uncompressed): ", (public_key2.x, public_key2.y))
+print("* public key (compressed): ", public_key2_compressed) 
+print("* Public key hash: ", public_key_hash2) 
+print("* Bitcoin address: ", bitcoin_address2)
+
+# transaction input #1 
+tx_in = TxIn(
+    prev_tx = bytes.fromhex('6707af5c6d5257067c969fcf7f875e6ad9ad3143e3025f8c391683b23cff9c24'), 
+    prev_index = 1, # the 2nd output 
+    script_sig = None, # signature to be inserted later 
+    sequence = 0xffffffff, # almost never used and default to 0xffffffff
+)
+
+# transaction output #1
+tx_out1 = TxOut(
+    amount = 75000,
+)
+
+# transaction output #2
+tx_out2 = TxOut(
+    amount = 22000,
+)
+
+# 75000 + 22000 = 97000, which means 3000 sats are paid to the miner as transaction fee 
+
+output1_pkh = PublicKey.from_point(public_key2).encode(compressed=True, hash160=True)  
+output2_pkh = PublicKey.from_point(public_key).encode(compressed=True, hash160=True)
+
+# 118, 169, 136 and 172 are op_codes. # Refer to https://en.bitcoin.it/wiki/Script for more info
+output1_script = Script([118, 169, output1_pkh, 136, 172])
+output2_script = Script([118, 169, output2_pkh, 136, 172])
+
+output1_script.encode().hex() # output 1 in hex: 1976a91400f6739d5e8b4017a9eebe413249ed3949e65e2488ac
+output2_script.encode().hex() # output 2 in hex: 1976a91400f6739d5e8b4017a9eebe413249ed3949e65e2488ac
+
+tx_out1.script_pubkey = output1_script # adding script_pubkey to output 1
+tx_out2.script_pubkey = output2_script # adding script_pubkey to output 2
+
+# retrieve previous transaction output public key hash 
+public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True)
+prev_tx_script_pubkey = Script([118, 169, public_key_hash, 136, 172])
+tx_in.prev_tx_script_pubkey = prev_tx_script_pubkey 
+print("Previous tx pub_key:", prev_tx_script_pubkey.encode().hex())
+
+transaction = Tx(
+    version = 1, # currently just version 1 exists
+    tx_ins = [tx_in],
+    tx_outs = [tx_out1, tx_out2],
+    locktime = 0,
+)
+
+message = transaction.encode(sig_index = 0)
+print("Message for signing: ", message.hex())
+

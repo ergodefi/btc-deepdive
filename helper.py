@@ -1,10 +1,6 @@
-# from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey 
-
-
-
 """
 All implementations here are for educational purposes only!
-Kudos to Andrej Karpathy for the inspiration and some of the code. You can review his blog: http://karpathy.github.io/
+Kudos to Andrej Karpathy for the inspiration and much of the code. You can review his blog: http://karpathy.github.io/
 """
 
 from __future__ import annotations # PEP 563: Postponed Evaluation of Annotations
@@ -652,7 +648,7 @@ class Tx:
     version: int
     tx_ins: List[TxIn]
     tx_outs: List[TxOut]
-    locktime: int
+    locktime: int = 0
 
     def encode(self, sig_index = -1) -> bytes:
         """ Encode transaction as bytes. 
