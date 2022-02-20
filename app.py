@@ -95,9 +95,14 @@ tx_out2.script_pubkey = output2_script # adding script_pubkey to output 2
 
 # retrieve previous transaction output public key hash 
 public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True)
+
+# constructing the previous tx locking script 
 prev_tx_script_pubkey = Script([118, 169, public_key_hash, 136, 172])
+
+# adding the locking script as placeholder for input digital signature
 tx_in.prev_tx_script_pubkey = prev_tx_script_pubkey 
-print("Previous tx pub_key:", prev_tx_script_pubkey.encode().hex())
+
+print("Previous tx locking script:", prev_tx_script_pubkey.encode().hex())
 
 transaction = Tx(
     version = 1, # currently just version 1 exists
