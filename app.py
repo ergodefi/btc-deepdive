@@ -1,4 +1,4 @@
-from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey, TxIn, TxOut, Tx, Script  
+from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey, TxIn, TxOut, Tx, Script, sign, Signature
 
 # secp256k1 ellptical curve constants - y^2 = x^3 + 7 (mod p)
 bitcoin_curve = Curve(
@@ -113,4 +113,15 @@ transaction = Tx(
 
 message = transaction.encode(sig_index = 0)
 print("Message for signing: ", message.hex())
+
+
+# generate the signature 
+signature = sign(secret_key, message)
+print("The digital signature:", signature)
+
+# encode the signature as DER encoding 
+sigature_bytes = signature.encode()
+print("The encoded digital signature:", sigature_bytes.hex())
+
+
 

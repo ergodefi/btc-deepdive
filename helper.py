@@ -74,7 +74,6 @@ def ec_addition(self, other: Point) -> Point:
     ry = (-(m*(rx - self.x) + self.y)) % self.curve.p
     return Point(self.curve, rx, ry)
 
-
 def double_and_add(self, k: int) -> Point:
     assert isinstance(k, int) and k >= 0
     result = INF 
@@ -748,11 +747,24 @@ def sign(secret_key: int, message: bytes) -> Signature:
     return sig 
 
 
+def signature_encode(self) -> bytes:
+    """ return the DER encoding of this signature """
+    def dern(n):
+        nb = n.to_bytes(32, byteorder="big")
+        nb = nb.lstrip(b'\x00') # strip leading 0s
+        nb = (b'\x00' if nb[0] >= 0x80 else b'') + nb # prepend 0x00 if first byte >= 0x80
+        return nb 
+    rb = dern(self.r)
+    sb = dern(self.s)
+    content = b''.join([bytes([0x02, len(rb)]), rb, bytes([0x02, len(sb)]), sb])
+    frame = b''.join([bytes([0x30, len(content)]), content])
+    return frame 
+
+Signature.encode = signature_encode # monkey patch into the class
+
 
 def tx_id(self) -> str:
     return sha256(sha256(self.encode()))[::-1].hex() # little/big endian requires byte order swap
 
 Tx.id = tx_id # monkey patch into class 
-
-
 
