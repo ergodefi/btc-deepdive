@@ -679,6 +679,22 @@ class Signature:
     r: int 
     s: int 
 
+    def encode(sig: Signature) -> bytes:
+        """ return the DER encoding of a (r,s) signature """
+
+        def dern(n):
+            nb = n.to_bytes(32, byteorder="big")
+            nb = nb.lstrip(b'\x00') # strip leading 0s
+            nb = (b'\x00' if nb[0] >= 0x80 else b'') + nb # prepend 0x00 if first byte >= 0x80
+            return nb 
+
+        rb = dern(sig.r)
+        sb = dern(sig.s)
+        content = b''.join([bytes([0x02, len(rb)]), rb, bytes([0x02, len(sb)]), sb])
+        frame = b''.join([bytes([0x30, len(content)]), content])
+        return frame 
+
+# Signature.encode = signature_encode # monkey patch into the class
 def encode_int(i, nbytes, encoding='little'):
     """ encode integer i into nbytes bytes using given byte ordering """
     return i.to_bytes(nbytes, encoding)
@@ -747,24 +763,18 @@ def sign(secret_key: int, message: bytes) -> Signature:
     return sig 
 
 
-def signature_encode(self) -> bytes:
-    """ return the DER encoding of this signature """
-    def dern(n):
-        nb = n.to_bytes(32, byteorder="big")
-        nb = nb.lstrip(b'\x00') # strip leading 0s
-        nb = (b'\x00' if nb[0] >= 0x80 else b'') + nb # prepend 0x00 if first byte >= 0x80
-        return nb 
-    rb = dern(self.r)
-    sb = dern(self.s)
-    content = b''.join([bytes([0x02, len(rb)]), rb, bytes([0x02, len(sb)]), sb])
-    frame = b''.join([bytes([0x30, len(content)]), content])
-    return frame 
+def create_script_sig(signature: bytes , public_key: Point) -> bytes: 
+    """ return the script_sig """
+    # appending 1 means SIGHASH_ALL, indicating the DER signature we created encodes ALL of the tx
+    # SIGHASH_ALL is by far the most common type 
+    signature_and_type = signature + b'\x01' 
 
-Signature.encode = signature_encode # monkey patch into the class
+    # encode public key into bytes
+    public_key_bytes = PublicKey.from_point(public_key).encode(compressed=True, hash160=False)
 
+    # return a lightweight Script with both DER encoded signature and public key
+    script_sig = Script([signature_and_type, public_key_bytes])
+    return script_sig
 
-def tx_id(self) -> str:
-    return sha256(sha256(self.encode()))[::-1].hex() # little/big endian requires byte order swap
-
-Tx.id = tx_id # monkey patch into class 
-
+def generate_tx_id(tx) -> str:
+    return sha256(sha256(tx.encode()))[::-1].hex() # little/big endian requires byte order swap

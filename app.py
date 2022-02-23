@@ -1,4 +1,4 @@
-from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey, TxIn, TxOut, Tx, Script, sign, Signature
+from helper import Curve, Point, Generator, ec_addition, double_and_add
 
 # secp256k1 ellptical curve constants - y^2 = x^3 + 7 (mod p)
 bitcoin_curve = Curve(
@@ -25,13 +25,16 @@ INF = Point(None, None, None)
 # point addition and multiplicationw
 Point.__rmul__ = double_and_add
 Point.__add__ = ec_addition
-
+3
 # identity 1
 # ========================
 # using a static secret key instead of random for reproducibility 
 secret_key = int.from_bytes(b'super secret identity one', 'big') 
 assert 1 <= secret_key < bitcoin_gen.n 
 public_key = secret_key * G
+
+from helper import PublicKey
+
 public_key_compressed = PublicKey.from_point(public_key).encode(compressed=True, hash160=False).hex()
 public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True).hex()
 bitcoin_address = PublicKey.from_point(public_key).address(net='test', compressed=True)
@@ -60,6 +63,8 @@ print("* public key (compressed): ", public_key2_compressed)
 print("* Public key hash: ", public_key_hash2) 
 print("* Bitcoin address: ", bitcoin_address2)
 
+from helper import TxIn, TxOut, Script, Tx
+
 # transaction input #1 
 tx_in = TxIn(
     prev_tx = bytes.fromhex('6707af5c6d5257067c969fcf7f875e6ad9ad3143e3025f8c391683b23cff9c24'), 
@@ -79,6 +84,8 @@ tx_out2 = TxOut(
 )
 
 # 75000 + 22000 = 97000, which means 3000 sats are paid to the miner as transaction fee 
+
+from helper import sign, create_script_sig, generate_tx_id
 
 output1_pkh = PublicKey.from_point(public_key2).encode(compressed=True, hash160=True)  
 output2_pkh = PublicKey.from_point(public_key).encode(compressed=True, hash160=True)
@@ -104,24 +111,36 @@ tx_in.prev_tx_script_pubkey = prev_tx_script_pubkey
 
 print("Previous tx locking script:", prev_tx_script_pubkey.encode().hex())
 
-transaction = Tx(
-    version = 1, # currently just version 1 exists
+# construct the transaction 
+tx = Tx(
+    version = 1, # currently there's just version 1
     tx_ins = [tx_in],
     tx_outs = [tx_out1, tx_out2],
     locktime = 0,
 )
 
-message = transaction.encode(sig_index = 0)
+message = tx.encode(sig_index = 0)
 print("Message for signing: ", message.hex())
 
-
 # generate the signature 
-signature = sign(secret_key, message)
-print("The digital signature:", signature)
+sig = sign(secret_key, message)
+print("The digital signature:", sig)
 
 # encode the signature as DER encoding 
-sigature_bytes = signature.encode()
-print("The encoded digital signature:", sigature_bytes.hex())
+sig_bytes = sig.encode()
+print("The encoded digital signature:", sig_bytes.hex())
 
+# generate the script_sig (DER encoded signature + public key)
+script_sig = create_script_sig(sig_bytes, public_key)
 
+# adding script_sig to the transaction input 
+tx_in.script_sig = script_sig
 
+# print the full transaction as byte and hex!
+print("Completed transaction (in bytestring):", tx)
+print("---")
+print("Completed transaction (in hex):", tx.encode().hex())
+
+# once tx goes through, this will be its id (which is a hash of the entire transaction)
+transaction_id = generate_tx_id(tx)
+print("Transaction id:", transaction_id) 
