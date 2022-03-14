@@ -12,144 +12,6 @@ import random
 import sys
 import struct
 
-""" 
-Elliptical math (ECDSA) used for Bitcoin Encryption  
-"""
-
-@dataclass
-class Curve:
-    p: int # the prime modulus of the finite field
-    a: int
-    b: int
-
-@dataclass
-class Point:
-    curve: Curve
-    x: int 
-    y: int
-
-@dataclass
-class Generator:
-    G: Point # a generator point on the curve
-    n: int # the order of the generating point, so 0*G = n*G = INF 
-
-def extended_euclidean_algorithm(a, b):
-    """ Returns (gcd, x, y) such that a * x + b * y == gcd """
-    old_r, r = a, b
-    old_s, s = 1, 0
-    old_t, t = 0, 1
-
-    while r != 0:
-        quotient = old_r // r  # // means integer division 
-        old_r , r = r, old_r - quotient * r
-        old_s, s = s, old_s - quotient * s
-        old_t, t = t, old_t - quotient * t
-    return old_r, old_s, old_t 
-
-def inv(n, p):
-    """ returns modular multiplicate inverse m such that (n*m)%p==1 """
-    gcd, x, y = extended_euclidean_algorithm(n, p)
-    return x % p 
-
-def ec_addition(self, other: Point) -> Point: 
-
-    # handle special case of P + 0 = 0 + P = 0
-    if self == INF:
-        return other 
-    if other == INF:
-        return self
-
-    # handle special case of P + (-P) = 0 
-    if self.x == other.x and self.y != other.y:
-        return INF 
-
-    # compute the "slope"
-    if self.x == other.x:
-        m = (3 * self.x**2 + self.curve.a) * inv(2 * self.y, self.curve.p)
-    else:
-        m = (self.y - other.y) * inv(self.x - other.x, self.curve.p)
-    
-    # compute the new point 
-    rx = (m**2 - self.x - other.x) % self.curve.p
-    ry = (-(m*(rx - self.x) + self.y)) % self.curve.p
-    return Point(self.curve, rx, ry)
-
-def double_and_add(self, k: int) -> Point:
-    assert isinstance(k, int) and k >= 0
-    result = INF 
-    append = self 
-    while k:
-        if k & 1:
-            result += append
-        append += append
-        k >>= 1
-    return result 
-
-class PublicKey(Point):
-    """ The public key is a point on Curve, with additional encoding/decoding """
-
-    @classmethod
-    def from_point(cls, pt: Point):
-        """ promote a Point to be a Public Key"""
-        return cls(pt.curve, pt.x, pt.y)
-    
-    def encode(self, compressed, hash160=False):
-        """ return the SEC bytes encoding of the Public Key Point """
-        # calculate the bytes
-        if compressed:
-            # we can just encode x, since y can be calculated 
-            # just need to add prefix, 02 or 03 depending on +/-
-            prefix = b'\x02' if self.y % 2 == 0 else b'\x03'
-            pkb = prefix + self.x.to_bytes(32, 'big')
-        else:
-            pkb = b'\x04' + self.x.to_bytes(32, 'big') + self.y.to_bytes(32, 'big')
-        
-        # hash if desired 
-        return ripemd160(sha256(pkb)) if hash160 else pkb 
-    
-    def address(self, net: str, compressed: bool) -> str: 
-        """ return the associated bitcon address for this public key as string"""
-        # encode public key into bytes and hash to get payload
-        pkb_hash = self.encode(compressed=compressed, hash160=True)
-
-        # add version byte to payload 
-        version = {'main': b'\x00', 'test': b'\x6f'}
-        ver_pkb_hash = version[net] + pkb_hash
-
-        # calculate the checksum
-        checksum = sha256(sha256(ver_pkb_hash))[:4]
-
-        # append checksum to versioned payload to form the full 25-byte binary Bitcoin Address 
-        byte_address = ver_pkb_hash + checksum
-
-        # finally, base58 encode the result to get the Bitcoin Address
-        base58check_address = base58encode(byte_address)
-
-        return base58check_address
-
-### BITCOIN CONSTANTS ####
-
-# secp256k1 uses a = 0, b = 7, so we're dealing with the curve y^2 = x^3 + 7 (mod p)
-bitcoin_curve = Curve(
-    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F,
-    a = 0x0000000000000000000000000000000000000000000000000000000000000000, # a = 0
-    b = 0x0000000000000000000000000000000000000000000000000000000000000007, # b = 7
-)
-
-G = Point(
-    bitcoin_curve, 
-    x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798, 
-    y = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8,
-)
-
-bitcoin_gen = Generator(
-    G = G,
-    n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141, 
-)
-
-INF = Point(None, None, None) # special point at infinity, kind of like "zero"
-
-
 
 """
 SHA256
@@ -302,7 +164,6 @@ def sha256(b: bytes) -> bytes:
 """
 RIPEMD160
 """
-
 # -----------------------------------------------------------------------------
 # public interface
 
@@ -608,9 +469,156 @@ def base58encode(b: bytes) -> str:
     return res 
 
 
+
+
+
+
+
+
+""" 
+Elliptical math (ECDSA) used for Bitcoin Encryption  
+"""
+
+@dataclass
+class Curve:
+    p: int # the prime modulus of the finite field
+    a: int
+    b: int
+
+@dataclass
+class Point:
+    curve: Curve
+    x: int 
+    y: int
+
+@dataclass
+class Generator:
+    G: Point # a generator point on the curve
+    n: int # the order of the generating point, so 0*G = n*G = INF 
+
+def extended_euclidean_algorithm(a, b):
+    """ Returns (gcd, x, y) such that a * x + b * y == gcd """
+    old_r, r = a, b
+    old_s, s = 1, 0
+    old_t, t = 0, 1
+
+    while r != 0:
+        quotient = old_r // r  # // means integer division 
+        old_r , r = r, old_r - quotient * r
+        old_s, s = s, old_s - quotient * s
+        old_t, t = t, old_t - quotient * t
+    return old_r, old_s, old_t 
+
+def inv(n, p):
+    """ returns modular multiplicate inverse m such that (n*m)%p==1 """
+    gcd, x, y = extended_euclidean_algorithm(n, p)
+    return x % p 
+
+def ec_addition(self, other: Point) -> Point: 
+
+    # handle special case of P + 0 = 0 + P = 0
+    if self == INF:
+        return other 
+    if other == INF:
+        return self
+
+    # handle special case of P + (-P) = 0 
+    if self.x == other.x and self.y != other.y:
+        return INF 
+
+    # compute the "slope"
+    if self.x == other.x:
+        m = (3 * self.x**2 + self.curve.a) * inv(2 * self.y, self.curve.p)
+    else:
+        m = (self.y - other.y) * inv(self.x - other.x, self.curve.p)
+    
+    # compute the new point 
+    rx = (m**2 - self.x - other.x) % self.curve.p
+    ry = (-(m*(rx - self.x) + self.y)) % self.curve.p
+    return Point(self.curve, rx, ry)
+
+def double_and_add(self, k: int) -> Point:
+    # binary expansion 
+    assert isinstance(k, int) and k >= 0
+    result = INF 
+    append = self 
+    while k:
+        if k & 1:
+            result += append
+        append += append
+        k >>= 1
+    return result 
+
+class PublicKey(Point):
+    """ The public key is a point on Curve, with additional encoding/decoding """
+
+    @classmethod
+    def from_point(cls, pt: Point):
+        """ promote a Point to be a Public Key"""
+        return cls(pt.curve, pt.x, pt.y)
+    
+    def encode(self, compressed, hash160=False):
+        """ return the SEC bytes encoding of the Public Key Point """
+        # calculate the bytes
+        if compressed:
+            # we can just encode x, since y can be calculated 
+            # just need to add prefix, 02 or 03 depending on +/-
+            prefix = b'\x02' if self.y % 2 == 0 else b'\x03'
+            pkb = prefix + self.x.to_bytes(32, 'big')
+        else:
+            pkb = b'\x04' + self.x.to_bytes(32, 'big') + self.y.to_bytes(32, 'big')
+        
+        # hash if desired 
+        return ripemd160(sha256(pkb)) if hash160 else pkb 
+    
+    def address(self, net: str, compressed: bool) -> str: 
+        """ return the associated bitcon address for this public key as string"""
+        # encode public key into bytes and hash to get payload
+        pkb_hash = self.encode(compressed=compressed, hash160=True)
+
+        # add version byte to payload 
+        version = {'main': b'\x00', 'test': b'\x6f'}
+        ver_pkb_hash = version[net] + pkb_hash
+
+        # calculate the checksum
+        checksum = sha256(sha256(ver_pkb_hash))[:4]
+
+        # append checksum to versioned payload to form the full 25-byte binary Bitcoin Address 
+        byte_address = ver_pkb_hash + checksum
+
+        # finally, base58 encode the result to get the Bitcoin Address
+        base58check_address = base58encode(byte_address)
+
+        return base58check_address
+
+
 """
 Functionality for Bitcoin Transaction
 """
+
+### BITCOIN CONSTANTS ####
+
+# secp256k1 uses a = 0, b = 7, so we're dealing with the curve y^2 = x^3 + 7 (mod p)
+bitcoin_curve = Curve(
+    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F,
+    a = 0x0000000000000000000000000000000000000000000000000000000000000000, # a = 0
+    b = 0x0000000000000000000000000000000000000000000000000000000000000007, # b = 7
+)
+
+G = Point(
+    bitcoin_curve, 
+    x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798, 
+    y = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8,
+)
+
+bitcoin_gen = Generator(
+    G = G,
+    n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141, 
+)
+
+INF = Point(None, None, None) # special point at infinity, kind of like "zero"
+
+
 
 @dataclass
 class Script:
@@ -681,7 +689,6 @@ class Signature:
 
     def encode(sig: Signature) -> bytes:
         """ return the DER encoding of a (r,s) signature """
-
         def dern(n):
             nb = n.to_bytes(32, byteorder="big")
             nb = nb.lstrip(b'\x00') # strip leading 0s
@@ -694,7 +701,6 @@ class Signature:
         frame = b''.join([bytes([0x30, len(content)]), content])
         return frame 
 
-# Signature.encode = signature_encode # monkey patch into the class
 def encode_int(i, nbytes, encoding='little'):
     """ encode integer i into nbytes bytes using given byte ordering """
     return i.to_bytes(nbytes, encoding)
@@ -778,3 +784,14 @@ def create_script_sig(signature: bytes , public_key: Point) -> bytes:
 
 def generate_tx_id(tx) -> str:
     return sha256(sha256(tx.encode()))[::-1].hex() # little/big endian requires byte order swap
+
+def verify(public_key, sig_hash, sig):
+    z = sig_hash 
+    N = bitcoin_gen.n
+
+    s_inv = pow(sig.s, N - 2, N)
+    u = z * s_inv % N
+    v = sig.r * s_inv % N
+    total = u * G + v * public_key
+
+    return total.x.num == sig.r 

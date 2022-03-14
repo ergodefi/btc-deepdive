@@ -22,10 +22,10 @@ bitcoin_gen = Generator(
 # point at infinity 
 INF = Point(None, None, None) 
 
-# point addition and multiplicationw
+# point addition and multiplication
 Point.__rmul__ = double_and_add
 Point.__add__ = ec_addition
-3
+
 # identity 1
 # ========================
 # using a static secret key instead of random for reproducibility 
@@ -35,16 +35,16 @@ public_key = secret_key * G
 
 from helper import PublicKey
 
-public_key_compressed = PublicKey.from_point(public_key).encode(compressed=True, hash160=False).hex()
+public_key_compressed = PublicKey.from_point(public_key).encode(compressed=True, hash160=False)
 public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True).hex()
 bitcoin_address = PublicKey.from_point(public_key).address(net='test', compressed=True)
 
 print("Bitcoin Identity #1")
 print("* Secret (Private) Key: ", secret_key)
-print("* Public key (uncompressed): ", (public_key.x, public_key.y))
-print("* Public key (compressed): ", public_key_compressed) 
-print("* Public key hash: ", public_key_hash) 
-print("* Bitcoin address (base58check): ", bitcoin_address)
+print("* Public key (uncompressed): ", (public_key.x, public_key.y)) 
+print("* Public key (compressed): ", public_key_compressed.hex()) 
+print("* Public key hash: ", public_key_hash)  
+print("* Bitcoin address (base58check): ", bitcoin_address) # 
 
 
 # identity 2 
@@ -144,3 +144,7 @@ print("Completed transaction (in hex):", tx.encode().hex())
 # once tx goes through, this will be its id (which is a hash of the entire transaction)
 transaction_id = generate_tx_id(tx)
 print("Transaction id:", transaction_id) 
+
+
+
+
