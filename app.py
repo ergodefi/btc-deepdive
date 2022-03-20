@@ -11,7 +11,7 @@ publicKey = privateKey.point
 
 print("Bitcoin Identity #1")
 print("* Private key: ", privateKey.secret)
-print("* Public key (Point): ", (publicKey.x.num, publicKey.y.num)) 
+print("* Public key: ", (publicKey.x.num, publicKey.y.num)) 
 print("* Public key (SEC Compressed): ", publicKey.sec().hex())
 print("* Public key (SEC Uncompressed): ", publicKey.sec(compressed=False).hex())
 print("* Public key hash: ", publicKey.hash160().hex())  
