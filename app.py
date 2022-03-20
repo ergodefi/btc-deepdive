@@ -1,44 +1,29 @@
-from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey, TxIn, TxOut, Tx, Script  
-
-# secp256k1 ellptical curve constants - y^2 = x^3 + 7 (mod p)
-bitcoin_curve = Curve(
-    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F,
-    a = 0x0, 
-    b = 0x7, 
-)
-
-# generator point 
-G = Point(
-    bitcoin_curve, 
-    x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798, 
-    y = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8,
-)
-
-bitcoin_gen = Generator(
-    G = G,
-    n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141, 
-)
-
-# point at infinity 
-INF = Point(None, None, None) 
-
-# point addition and multiplication
-Point.__rmul__ = double_and_add
-Point.__add__ = ec_addition
+from ecc import PrivateKey
+from helper import decode_base58
+from script import p2pkh_script, Script 
+from tx import TxIn, TxOut, Tx
+from helper import SIGHASH_ALL
 
 # identity 1
-# ========================
-# using a static secret key instead of random for reproducibility 
-secret_key = int.from_bytes(b'super secret identity one', 'big') 
-assert 1 <= secret_key < bitcoin_gen.n 
-public_key = secret_key * G
-
-public_key_compressed = PublicKey.from_point(public_key).encode(compressed=True, hash160=False).hex()
-public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True).hex()
-bitcoin_address = PublicKey.from_point(public_key).address(net='test', compressed=True)
+# =====================
+secret = int.from_bytes(b'super secret identity one', 'big')
+privateKey = PrivateKey(secret)
+publicKey = privateKey.point 
 
 print("Bitcoin Identity #1")
-print("* Secret (Private) Key: ", secret_key)
-print("* Public key (uncompressed): ", (public_key.x, public_key.y))
-print("* Public key (compressed): ", public_key_compressed) 
-print("* Bitcoin address: ", bitcoin_address)
+print("* Private key: ", privateKey.secret)
+print("* Public key (Point): ", (publicKey.x.num, publicKey.y.num)) 
+print("* Public key (SEC Compressed): ", publicKey.sec().hex())
+print("* Public key (SEC Uncompressed): ", publicKey.sec(compressed=False).hex())
+print("* Public key hash: ", publicKey.hash160().hex())  
+print("* Bitcoin address ", publicKey.address(testnet=True))
+
+"""
+Bitcoin Identity #1
+* Private key:  724746296646138075612064989570816355802000824461885300502117
+* Public key (Point):  (35490547311314112975969199385462927466356376524965552000974623035901126229990, 75829577894590863462191837680945451999817850420713104019785938471674831323880)
+* Public key (SEC Compressed):  024e76f01bc8ad2b0ca775ee0e392f52f5dd29e779388c6503044592c56f69bfe6
+* Public key (SEC Uncompressed):  044e76f01bc8ad2b0ca775ee0e392f52f5dd29e779388c6503044592c56f69bfe6a7a605274e750d1d70a8548c96417d8036c4fb8b6d4296308505c2d8799a42e8
+* Public key hash:  363bb1ef1d8791bdbd7e7492ef91decc1eb7295d
+* Bitcoin address  mkTiJ6dtXpYJqAremsCZtEww2XFWw3f2WT
+"""
