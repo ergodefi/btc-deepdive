@@ -1,8 +1,4 @@
 from ecc import PrivateKey
-from helper import decode_base58
-from script import p2pkh_script, Script 
-from tx import TxIn, TxOut, Tx
-from helper import SIGHASH_ALL
 
 # identity 1
 # =====================
