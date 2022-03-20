@@ -1,7 +1,9 @@
 import hashlib
-
+from logging import getLogger
 from ecc import S256Point,  Signature
 from helper import hash160, hash256
+
+LOGGER = getLogger(__name__)
 
 def encode_num(num):
     if num == 0:

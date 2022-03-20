@@ -1,11 +1,9 @@
 from io import BytesIO
-from random import randint
 import hashlib
 import hmac
 from helper import encode_base58_checksum, hash160
 
 class FieldElement:
-    
     '''Finite field value e.g. FieldElement_19 (0-18)'''
     def __init__(self, num, prime):
         if num >= prime or num < 0:
@@ -335,7 +333,7 @@ class PrivateKey:
             v = hmac.new(k, v, s256).digest()
             candidate = int.from_bytes(v, 'big')
             if candidate >= 1 and candidate < N:
-                print("k:", hex(candidate))
+                # print("k:", hex(candidate))
                 return candidate  
             k = hmac.new(k, v + b'\x00', s256).digest()
             v = hmac.new(k, v, s256).digest()
