@@ -1,116 +1,90 @@
-from helper import Curve, Point, Generator, ec_addition, double_and_add, PublicKey, TxIn, TxOut, Tx, Script  
-
-# secp256k1 ellptical curve constants - y^2 = x^3 + 7 (mod p)
-bitcoin_curve = Curve(
-    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F,
-    a = 0x0, 
-    b = 0x7, 
-)
-
-# generator point 
-G = Point(
-    bitcoin_curve, 
-    x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798, 
-    y = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8,
-)
-
-bitcoin_gen = Generator(
-    G = G,
-    n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141, 
-)
-
-# point at infinity 
-INF = Point(None, None, None) 
-
-# point addition and multiplicationw
-Point.__rmul__ = double_and_add
-Point.__add__ = ec_addition
+from ecc import PrivateKey
+from script import p2pkh_script, Script 
+from helper import SIGHASH_ALL
+from tx import TxIn, TxOut, Tx
 
 # identity 1
-# ========================
-# using a static secret key instead of random for reproducibility 
-secret_key = int.from_bytes(b'super secret identity one', 'big') 
-assert 1 <= secret_key < bitcoin_gen.n 
-public_key = secret_key * G
-public_key_compressed = PublicKey.from_point(public_key).encode(compressed=True, hash160=False).hex()
-public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True).hex()
-bitcoin_address = PublicKey.from_point(public_key).address(net='test', compressed=True)
+# =====================
+secret = int.from_bytes(b'super secret identity one', 'big')
+privateKey = PrivateKey(secret)
+publicKey = privateKey.point 
 
 print("Bitcoin Identity #1")
-print("* Secret (Private) Key: ", secret_key)
-print("* Public key (uncompressed): ", (public_key.x, public_key.y))
-print("* Public key (compressed): ", public_key_compressed) 
-print("* Public key hash: ", public_key_hash) 
-print("* Bitcoin address (base58check): ", bitcoin_address)
-
+print("* Private key: ", privateKey.secret)
+print("* Public key (Point): ", (publicKey.x.num, publicKey.y.num)) 
+print("* Public key (SEC Compressed): ", publicKey.sec().hex())
+print("* Public key (SEC Uncompressed): ", publicKey.sec(compressed=False).hex())
+print("* Public key hash: ", publicKey.hash160().hex())  
+print("* Bitcoin address ", publicKey.address(testnet=True))
 
 # identity 2 
 # ========================
-secret_key2 = int.from_bytes(b'another secret identity two', 'big') # for reproducibility 
-assert 1 <= secret_key2 < bitcoin_gen.n
-public_key2 = secret_key2 * G
-public_key2_compressed = PublicKey.from_point(public_key2).encode(compressed=True, hash160=False).hex()
-public_key_hash2 = PublicKey.from_point(public_key2).encode(compressed=True, hash160=True).hex()
-bitcoin_address2 = PublicKey.from_point(public_key2).address(net='test', compressed=True)
+secret2 = int.from_bytes(b'another secret identity two', 'big')
+privateKey2 = PrivateKey(secret2)
+publicKey2 = privateKey2.point
 
+print()
 print("Bitcoin Identity #2")
-print("* Secret (Private) Key: ", secret_key2)
-print("* Public key (uncompressed): ", (public_key2.x, public_key2.y))
-print("* public key (compressed): ", public_key2_compressed) 
-print("* Public key hash: ", public_key_hash2) 
-print("* Bitcoin address: ", bitcoin_address2)
+print("* Private key: ", privateKey2.secret)
+print("* Public key (Point): ", (publicKey2.x.num, publicKey2.y.num)) 
+print("* Public key (SEC Compressed): ", publicKey2.sec().hex())
+print("* Public key (SEC Uncompressed): ", publicKey2.sec(compressed=False).hex())
+print("* Public key hash: ", publicKey2.hash160().hex())  
+print("* Bitcoin address ", publicKey2.address(testnet=True))
 
-# transaction input #1 
+
+
+
+
+# Transaction 
+# =====================
+
+# STEP 1:   Create TxIn objects to store transaction inputs 
+#           The script_sig cannot be generated yet 
 tx_in = TxIn(
-    prev_tx = bytes.fromhex('6707af5c6d5257067c969fcf7f875e6ad9ad3143e3025f8c391683b23cff9c24'), 
-    prev_index = 1, # the 2nd output 
-    script_sig = None, # signature to be inserted later 
-    sequence = 0xffffffff, # almost never used and default to 0xffffffff
+    prev_tx = bytes.fromhex('6707af5c6d5257067c969fcf7f875e6ad9ad3143e3025f8c391683b23cff9c24'),
+    prev_index = 1
 )
 
-# transaction output #1
+# STEP 2:   Create TxOut objects to store transaction outputs 
+# Create output #1 object
 tx_out1 = TxOut(
     amount = 75000,
-)
+    script_pubkey = p2pkh_script(publicKey2.hash160()) 
+    # OP_DUP OP_HASH160 00f6739d5e8b4017a9eebe413249ed3949e65e24 OP_EQUALVERIFY OP_CHECKSIG
+)  
 
-# transaction output #2
+# Create output #2 object
 tx_out2 = TxOut(
     amount = 22000,
+    script_pubkey = p2pkh_script(publicKey.hash160()) 
+    # OP_DUP OP_HASH160 363bb1ef1d8791bdbd7e7492ef91decc1eb7295d OP_EQUALVERIFY OP_CHECKSIG
 )
 
-# 75000 + 22000 = 97000, which means 3000 sats are paid to the miner as transaction fee 
+# STEP 3 - Create the transaction object to consolidate the info 
 
-output1_pkh = PublicKey.from_point(public_key2).encode(compressed=True, hash160=True)  
-output2_pkh = PublicKey.from_point(public_key).encode(compressed=True, hash160=True)
-
-# 118, 169, 136 and 172 are op_codes. # Refer to https://en.bitcoin.it/wiki/Script for more info
-output1_script = Script([118, 169, output1_pkh, 136, 172])
-output2_script = Script([118, 169, output2_pkh, 136, 172])
-
-output1_script.encode().hex() # output 1 in hex: 1976a91400f6739d5e8b4017a9eebe413249ed3949e65e2488ac
-output2_script.encode().hex() # output 2 in hex: 1976a91400f6739d5e8b4017a9eebe413249ed3949e65e2488ac
-
-tx_out1.script_pubkey = output1_script # adding script_pubkey to output 1
-tx_out2.script_pubkey = output2_script # adding script_pubkey to output 2
-
-# retrieve previous transaction output public key hash 
-public_key_hash = PublicKey.from_point(public_key).encode(compressed=True, hash160=True)
-
-# constructing the previous tx locking script 
-prev_tx_script_pubkey = Script([118, 169, public_key_hash, 136, 172])
-
-# adding the locking script as placeholder for input digital signature
-tx_in.prev_tx_script_pubkey = prev_tx_script_pubkey 
-
-print("Previous tx locking script:", prev_tx_script_pubkey.encode().hex())
-
-transaction = Tx(
-    version = 1, # currently just version 1 exists
+tx = Tx(
+    version = 1,
     tx_ins = [tx_in],
     tx_outs = [tx_out1, tx_out2],
     locktime = 0,
+    testnet=True
 )
 
-message = transaction.encode(sig_index = 0)
-print("Message for signing: ", message.hex())
+# STEP 4 - Sign the transaction to generate digital signature 
+z = tx.sig_hash(0) 
+rs_values = privateKey.sign(z)
+der = rs_values.der()
+sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+script_sig = Script([sig, privateKey.point.sec()])
 
+print("r-value:", rs_values.r)
+print("s-value:", rs_values.s)
+print("DER signature:", der.hex())
+print("script_sig:", script_sig)
+
+# STEP 5 - the transaction together 
+tx.tx_ins[0].script_sig = script_sig  # incorporate script_sig into transaction 
+
+print(tx.serialize()) # print raw format
+print(tx.serialize().hex()) # this is our transaction (in hex format)
